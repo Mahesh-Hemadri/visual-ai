@@ -48,7 +48,10 @@ export type TimelineAction = {
     | "move"
     | "connect"
     | "flow"
-    | "flow_layer";
+    | "flow_layer"
+    | "calculate"
+    | "transform"
+    | "fade";
 
   target?: string;
   from?: string;
