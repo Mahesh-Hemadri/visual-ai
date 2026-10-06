@@ -324,7 +324,7 @@ export default function VisualizePage() {
 
               <div className="grid gap-4 md:grid-cols-2">
 
-                {result.steps.map(
+                {(result.steps ?? []).map(
                   (step, index) => (
                     <div
                       key={index}

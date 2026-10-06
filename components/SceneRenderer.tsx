@@ -1,6 +1,7 @@
 "use client";
 
 import NeuronScene from "@/visualizations/scenes/NeuronScene";
+import NeuralNetworkScene from "@/visualizations/scenes/NeuralNetworkScene";
 import TokenizationScene from "@/visualizations/scenes/TokenizationScene";
 
 type Props = {
@@ -12,21 +13,22 @@ export default function SceneRenderer({
   concept,
   currentTime,
 }: Props) {
-  /*
-   * Different scenes currently use different animation controls:
-   *
-   * NeuronScene      -> currentTime
-   * TokenizationScene -> step
-   *
-   * This component acts as the adapter between the
-   * AI-generated concept and the correct visualization.
-   */
+  const normalizedConcept = concept
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "_");
 
-  switch (concept) {
+  switch (normalizedConcept) {
     case "neuron":
-    case "neural_network":
       return (
         <NeuronScene
+          currentTime={currentTime}
+        />
+      );
+
+    case "neural_network":
+      return (
+        <NeuralNetworkScene
           currentTime={currentTime}
         />
       );
@@ -53,7 +55,9 @@ export default function SceneRenderer({
       return (
         <div className="flex min-h-[400px] items-center justify-center">
           <div className="text-center">
-            <div className="mb-4 text-4xl">✦</div>
+            <div className="mb-4 text-4xl">
+              ✦
+            </div>
 
             <h2 className="text-xl font-semibold">
               Visualization coming soon

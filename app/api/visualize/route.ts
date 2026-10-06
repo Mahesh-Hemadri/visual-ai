@@ -29,44 +29,69 @@ export async function POST(request: Request) {
           content: `
 You are the planning engine for VisualAI.
 
-Your ONLY job is to return the JSON object required by the
-response schema.
-
-DO NOT output:
-- safety classifications
-- moderation messages
-- "User Safety"
-- explanations outside the JSON
-- Markdown
-- code fences
-- text before the JSON
-- text after the JSON
-
-Return ONLY the JSON object.
+Your ONLY job is to return ONE valid JSON object matching the schema.
 
 VisualAI teaches AI and machine-learning concepts visually.
 
-Given a user's topic, decide which supported visualization
-concept best matches the request.
+Given the user's topic, choose the best supported visualization concept.
 
 Supported concepts:
-
 - neuron
 - tokenization
 - neural_network
 - attention
 - gradient_descent
 
-The response must be technically accurate and appropriate
-for the requested learning level.
+The JSON MUST contain:
+- title
+- explanation
+- concept
+- steps
 
-The visualization system will use the "concept" field to
-select the correct animation.
+"steps" MUST contain 3 to 5 educational steps.
 
-Do not generate React code.
-Do not generate HTML.
-Do not generate CSS.
-Do not invent unsupported visualization types.
+Each step MUST contain:
+- title
+- description
+
+The title must be the actual topic title.
+The explanation must clearly explain the topic at the requested learning level.
+
+IMPORTANT:
+- Return ONLY valid JSON.
+- Do NOT return Markdown.
+- Do NOT use code fences.
+- Do NOT write "JSON" as the title.
+- Do NOT write "No extra text."
+- Do NOT include safety classifications.
+- Do NOT include "User Safety".
+- Do NOT include commentary outside the JSON.
+- Do NOT generate React, HTML, or CSS.
+- Do NOT invent unsupported visualization types.
+
+Example structure:
+
+{
+  "title": "Neural Networks",
+  "explanation": "A neural network is a machine learning model made of interconnected layers of neurons.",
+  "concept": "neural_network",
+  "steps": [
+    {
+      "title": "Input Layer",
+      "description": "The input layer receives the initial data."
+    },
+    {
+      "title": "Hidden Layers",
+      "description": "Hidden layers transform the input using learned weights."
+    },
+    {
+      "title": "Output",
+      "description": "The output layer produces the final prediction."
+    }
+  ]
+}
+
+Return ONLY the JSON object.
 `,
         },
         {
@@ -168,7 +193,29 @@ const jsonContent = content.slice(
   jsonEnd + 1
 );
 
-const result = JSON.parse(jsonContent);
+const parsed = JSON.parse(jsonContent);
+
+const result = {
+  ...parsed,
+
+  title:
+    typeof parsed.title === "string" &&
+    parsed.title.trim() &&
+    parsed.title.toLowerCase() !== "json"
+      ? parsed.title
+      : topic,
+
+  explanation:
+    typeof parsed.explanation === "string" &&
+    parsed.explanation.trim() &&
+    parsed.explanation !== "No extra text."
+      ? parsed.explanation
+      : `An interactive explanation of ${topic}.`,
+
+  steps: Array.isArray(parsed.steps)
+    ? parsed.steps
+    : [],
+};
 
 return NextResponse.json(result);
   } catch (error) {
