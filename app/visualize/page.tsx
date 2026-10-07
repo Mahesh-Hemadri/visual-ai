@@ -6,6 +6,23 @@ import Link from "next/link";
 
 import SceneRenderer from "@/components/SceneRenderer";
 
+type RAGData = {
+  query: string;
+  answer: string;
+  retrieved_chunks: {
+    rank: number;
+    source: string;
+    page: number;
+    chunk_id: string;
+    faiss_score: number;
+    reranker_score: number;
+  }[];
+  sources: {
+    source: string;
+    page: number;
+    chunk_id: string;
+  }[];
+};
 type VisualizationResult = {
   title: string;
   explanation: string;
@@ -14,7 +31,8 @@ type VisualizationResult = {
     | "tokenization"
     | "neural_network"
     | "attention"
-    | "gradient_descent";
+    | "gradient_descent"
+    | "rag";
 
   steps: {
     title: string;
@@ -26,13 +44,18 @@ export default function VisualizePage() {
   const searchParams = useSearchParams();
 
   const topic =
-    searchParams.get("topic") || "Neural Networks";
+  searchParams.get("concept") ||
+  searchParams.get("topic") ||
+  "Neural Networks";
 
   const level =
     searchParams.get("level") || "Beginner";
 
   const [result, setResult] =
     useState<VisualizationResult | null>(null);
+
+  const [ragData, setRagData] =
+    useState<RAGData | null>(null);
 
   const [loading, setLoading] = useState(true);
 
@@ -55,8 +78,10 @@ export default function VisualizePage() {
    */
 
   const maxTime =
-    result?.concept === "tokenization"
-      ? 4
+  result?.concept === "tokenization"
+    ? 4
+    : result?.concept === "rag"
+      ? 12
       : 7;
 
   /*
@@ -71,6 +96,9 @@ export default function VisualizePage() {
         setResult(null);
         setCurrentTime(0);
         setPlaying(false);
+        setRagData(null);
+
+        
 
         const response = await fetch(
           "/api/visualize",
@@ -100,6 +128,31 @@ export default function VisualizePage() {
         }
 
         setResult(data);
+        if (data.concept === "rag") {
+  const ragResponse = await fetch("/api/rag", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query:
+        topic.trim().toLowerCase() === "rag"
+          ? "What is Retrieval-Augmented Generation?"
+          : topic,
+    }),
+  });
+
+  const ragDataResponse = await ragResponse.json();
+
+  if (!ragResponse.ok) {
+    throw new Error(
+      ragDataResponse.error ||
+        "Failed to run the RAG pipeline."
+    );
+  }
+
+  setRagData(ragDataResponse);
+}
       } catch (error) {
         console.error(error);
 
@@ -247,22 +300,11 @@ export default function VisualizePage() {
 
             <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03]">
 
-              <div className="min-h-[500px]">
-
-                <SceneRenderer
-                  concept={result.concept}
-                  currentTime={currentTime}
-                />
-
-              </div>
-
               {/* Timeline controls */}
 
-              <div className="border-t border-white/10 px-5 py-4">
+              <div className="border-b border-white/10 px-5 py-4">
 
                 <div className="flex items-center gap-4">
-
-                  {/* Play */}
 
                   <button
                     type="button"
@@ -276,8 +318,6 @@ export default function VisualizePage() {
                         : "Play"}
                   </button>
 
-                  {/* Reset */}
-
                   <button
                     type="button"
                     onClick={resetAnimation}
@@ -285,8 +325,6 @@ export default function VisualizePage() {
                   >
                     Reset
                   </button>
-
-                  {/* Timeline */}
 
                   <input
                     type="range"
@@ -312,7 +350,19 @@ export default function VisualizePage() {
 
               </div>
 
+              {/* Visualization */}
+
+              <div className="min-h-[500px]">
+                <SceneRenderer
+                  concept={result.concept}
+                  currentTime={currentTime}
+                  ragData={ragData ?? undefined}
+                />
+              </div>
+
             </div>
+
+              
 
             {/* Explanation */}
 

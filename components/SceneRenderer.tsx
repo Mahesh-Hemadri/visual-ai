@@ -3,15 +3,28 @@
 import NeuronScene from "@/visualizations/scenes/NeuronScene";
 import NeuralNetworkScene from "@/visualizations/scenes/NeuralNetworkScene";
 import TokenizationScene from "@/visualizations/scenes/TokenizationScene";
+import RAGPipelineScene from "../visualizations/scenes/RAGPipelineScene";
+type RAGChunk = {
+  source: string;
+  page: number;
+  faiss_score?: number;
+  reranker_score?: number;
+};
 
 type Props = {
   concept: string;
   currentTime: number;
-};
 
+  ragData?: {
+    query: string;
+    answer: string;
+    retrieved_chunks: RAGChunk[];
+  };
+};
 export default function SceneRenderer({
   concept,
   currentTime,
+  ragData,
 }: Props) {
   const normalizedConcept = concept
     .toLowerCase()
@@ -47,6 +60,16 @@ export default function SceneRenderer({
       return (
         <TokenizationScene
           step={step}
+        />
+      );
+    }
+    case "rag": {
+      return (
+        <RAGPipelineScene
+          currentTime={currentTime}
+          query={ragData?.query}
+          answer={ragData?.answer}
+          retrievedChunks={ragData?.retrieved_chunks}
         />
       );
     }
