@@ -2,200 +2,382 @@
 
 > Turn complex AI/ML concepts into interactive visual explanations.
 
-VisualAI is an interactive learning platform that combines **RAG, LLMs, and deterministic visualization** to explain technical concepts visually rather than relying only on text.
+VisualAI is an interactive learning platform that combines RAG, LLMs, and deterministic visualization to explain technical concepts visually rather than relying only on text.
 
-The system is designed around one core principle:
+The core idea is simple:
 
-> **The AI decides what should be explained; the visualization engine decides how it should be rendered.**
-
----
-
-## ✨ Features
-
-- 🤖 AI-assisted concept understanding
-- 📚 Grounded RAG pipeline with document citations
-- 🔎 Semantic retrieval using BGE embeddings + FAISS
-- 🎯 Cross-encoder reranking
-- 🧠 Grounded LLM generation
-- 🎬 Timeline-based interactive visualizations
-- 📊 Real retrieval and reranking scores displayed in the UI
-- 🛡️ Grounded responses with an out-of-context refusal
-- 🧩 Modular visualization components
+**The AI decides what should be explained. The visualization engine decides how it should be rendered.**
 
 ---
 
-## 🏗️ Architecture
+## Features
+
+- AI-assisted concept understanding
+- Grounded Retrieval-Augmented Generation (RAG)
+- Semantic retrieval using BGE embeddings and FAISS
+- Cross-encoder reranking
+- Grounded LLM generation
+- Timeline-based interactive visualizations
+- Real retrieval and reranking scores displayed in the UI
+- Source attribution and out-of-context refusal
+- Reusable visualization primitives and scenes
+- Next.js frontend with a FastAPI RAG backend
+
+---
+
+## Architecture
 
 ```text
-                    User
-                     │
-                     ▼
-              Concept / Question
-                     │
-                     ▼
-              Next.js Application
-                     │
-          ┌──────────┴──────────┐
-          │                     │
-          ▼                     ▼
-   Visualization API        RAG API
-          │                     │
-          ▼                     ▼
-   Visualization Planner    Query Embedding
-                                │
-                                ▼
-                             FAISS
-                                │
-                                ▼
-                        Cross-Encoder
-                           Reranking
-                                │
-                                ▼
-                         Top-K Context
-                                │
-                                ▼
-                         Grounded LLM
-                                │
-                                ▼
-                       Answer + Sources
-          │                     │
-          └──────────┬──────────┘
-                     ▼
-          Deterministic Renderer
-                     │
-                     ▼
-          Interactive Visualization
+                         USER
+                           |
+                           v
+                  Concept / Question
+                           |
+                           v
+                  +-----------------+
+                  | Next.js Frontend|
+                  +--------+--------+
+                           |
+             +-------------+-------------+
+             |                           |
+             v                           v
+     Visualization API              RAG API
+             |                           |
+             |                           v
+             |                    Query Embedding
+             |                           |
+             |                           v
+             |                         FAISS
+             |                           |
+             |                           v
+             |                    Top-K Retrieval
+             |                           |
+             |                           v
+             |                  Cross-Encoder
+             |                    Reranking
+             |                           |
+             |                           v
+             |                     Top-3 Chunks
+             |                           |
+             |                           v
+             |                    Grounded LLM
+             |                           |
+             |                           v
+             |                    Answer + Sources
+             |                           |
+             +-------------+-------------+
+                           |
+                           v
+                 Deterministic Renderer
+                           |
+                           v
+                 Interactive Visualization
+```
 
-🔬 RAG Pipeline
-The current RAG implementation follows:
+---
+
+## RAG Pipeline
+
+The RAG implementation follows this pipeline:
+
+```text
 PDF Documents
-     │
-     ▼
+      |
+      v
 PyMuPDF Extraction
-     │
-     ▼
-Page-level Chunking
-     │
-     ▼
-BGE-small-en-v1.5
-     │
-     ▼
-FAISS Vector Index
-     │
-     ▼
-Top-10 Retrieval
-     │
-     ▼
+      |
+      v
+Page-based Chunking
+      |
+      v
+BGE-small-en-v1.5 Embeddings
+      |
+      v
+FAISS Vector Search
+      |
+      v
+Top-10 Candidates
+      |
+      v
 Cross-Encoder Reranking
-     │
-     ▼
+      |
+      v
 Top-3 Chunks
-     │
-     ▼
+      |
+      v
 Grounded LLM
-     │
-     ▼
+      |
+      v
 Answer + Source Citations
+```
 
-Embedding
-Model:
+### 1. Document Ingestion
+
+PDF documents are processed using **PyMuPDF**.
+
+The extracted content is divided into chunks using:
+
+- 400-word chunk size
+- 75-word overlap
+- Page-level source metadata
+
+Each chunk retains information such as:
+
+```text
+Source
+Page
+Chunk ID
+Text
+```
+
+This metadata is later used for source attribution.
+
+### 2. Embeddings
+
+The project uses:
+
+```text
 BAAI/bge-small-en-v1.5
+```
 
-Embedding dimension:
+The embedding dimension is:
+
+```text
 384
+```
 
-Embeddings are normalized and searched using FAISS inner-product similarity.
-Retrieval
-The system retrieves the top 10 candidate chunks from FAISS before reranking them.
-Reranking
-Retrieved candidates are reranked using:
+Embeddings are normalized before being stored in the vector index.
+
+### 3. Vector Retrieval
+
+FAISS is used for semantic similarity search.
+
+The current implementation uses:
+
+```text
+FAISS IndexFlatIP
+```
+
+The query is embedded using the same embedding model and compared against the indexed document chunks.
+
+The system initially retrieves:
+
+```text
+Top 10 candidates
+```
+
+### 4. Reranking
+
+The retrieved candidates are reranked using:
+
+```text
 cross-encoder/ms-marco-MiniLM-L-6-v2
+```
 
-The top 3 reranked chunks are passed to the LLM as context.
-Grounded Generation
-The LLM is instructed to answer using only the retrieved context.
-If the knowledge base does not contain sufficient information, the system returns:
+The cross-encoder evaluates the relevance between the query and retrieved chunks.
+
+The final:
+
+```text
+Top 3 chunks
+```
+
+are passed to the LLM.
+
+> FAISS similarity scores and cross-encoder scores use different scoring systems. They are used primarily to determine ranking rather than being directly compared as equivalent values.
+
+### 5. Grounded Generation
+
+The LLM receives the user's question together with the retrieved context.
+
+The generation prompt instructs the model to:
+
+- Use only the supplied context
+- Avoid unsupported information
+- Include source attribution
+- Refuse to answer when the knowledge base does not contain enough information
+
+For example:
+
+```text
 I don't have enough information in the provided knowledge base.
+```
 
-Generated answers include source attribution such as:
-[Source: rag.pdf, p. 1]
+This provides an explicit fallback for out-of-context questions.
 
-📈 Retrieval Evaluation
-The retrieval pipeline was evaluated against a small question set.
-Metric	Result
-Recall@1	0.714
-Recall@3	1.000
-Recall@5	1.000
-MRR	0.833
+---
 
+## Retrieval Evaluation
 
-These results were used as the baseline for the current retrieval implementation.
-🎬 Visualization Engine
-VisualAI uses a deterministic rendering system rather than allowing the LLM to generate arbitrary frontend code.
-The pipeline is:
+The retrieval pipeline was evaluated using a 7-question evaluation set.
+
+| Metric | Result |
+|---|---:|
+| Recall@1 | 0.714 |
+| Recall@3 | 1.000 |
+| Recall@5 | 1.000 |
+| MRR | 0.833 |
+
+These results represent the current baseline for the implemented retrieval pipeline.
+
+---
+
+## Visualization Engine
+
+VisualAI uses a deterministic visualization system rather than allowing the LLM to generate arbitrary frontend code.
+
+The visualization pipeline is:
+
+```text
 Concept
-   ↓
+   |
+   v
 Visualization Specification
-   ↓
+   |
+   v
 Validation
-   ↓
+   |
+   v
 Timeline
-   ↓
+   |
+   v
 React Renderer
-   ↓
+   |
+   v
 Interactive Scene
+```
 
-The renderer contains reusable visualization primitives and scenes.
-Current concepts include:
-- Neuron
+The renderer is built around reusable visualization primitives and scenes.
+
+Current visualization concepts include:
+
 - Neural Networks
+- Neurons
 - Tokenization
 - Retrieval-Augmented Generation
-The RAG visualization exposes the actual pipeline:
-User Query
-     ↓
-Query Embedding
-     ↓
-FAISS Retrieval
-     ↓
-Cross-Encoder Reranking
-     ↓
-Grounded LLM
-     ↓
-Grounded Answer
-     ↓
-Sources
 
-The visualization displays real retrieval and reranking values produced by the backend.
-🛠️ Tech Stack
-Frontend
+---
+
+## RAG Visualization
+
+The RAG visualization represents the actual retrieval pipeline:
+
+```text
+User Query
+    |
+    v
+Query Embedding
+    |
+    v
+FAISS Retrieval
+    |
+    v
+Cross-Encoder Reranking
+    |
+    v
+Top-3 Chunks
+    |
+    v
+Grounded LLM
+    |
+    v
+Grounded Answer
+    |
+    v
+Sources
+```
+
+The visualization displays actual values returned by the RAG backend, including:
+
+- FAISS similarity scores
+- Cross-encoder reranking scores
+- Retrieved document names
+- Page numbers
+- Grounded answer
+- Source references
+
+This connects the visual explanation to the actual backend execution rather than using hardcoded demonstration values.
+
+---
+
+## Design Philosophy
+
+VisualAI separates **AI reasoning** from **visual rendering**.
+
+### AI Layer
+
+The AI is responsible for:
+
+- Understanding the user's question
+- Retrieving relevant knowledge
+- Generating grounded explanations
+- Producing structured information for visualization
+
+### Rendering Layer
+
+The application is responsible for:
+
+- Validating visualization data
+- Managing timelines
+- Rendering reusable components
+- Controlling animations
+- Producing predictable visual output
+
+This separation provides:
+
+- Predictable rendering
+- Reusable visualization components
+- Easier debugging
+- Safer execution
+- Consistent animations
+- Clear separation between AI and application logic
+
+---
+
+## Tech Stack
+
+### Frontend
+
 - Next.js
 - React
 - TypeScript
 - Tailwind CSS
 - Motion
-AI / ML
+
+### AI / ML
+
 - Python
 - Sentence Transformers
 - BAAI/bge-small-en-v1.5
 - Cross-Encoder
 - FAISS
-- OpenRouter / LLM API
-Backend
+- OpenRouter
+
+### Backend
+
 - FastAPI
 - Pydantic
-Document Processing
+
+### Document Processing
+
 - PyMuPDF
-📁 Project Structure
+
+---
+
+## Project Structure
+
+```text
 visual-ai/
-│
+|
 ├── app/
 │   ├── api/
 │   │   ├── rag/
 │   │   └── visualize/
+│   │
 │   ├── learn/
 │   ├── playground/
-│   └── visualize/
+│   ├── visualize/
+│   └── page.tsx
 │
 ├── components/
 │   ├── SceneRenderer.tsx
@@ -210,121 +392,284 @@ visual-ai/
 │   ├── primitives/
 │   └── scenes/
 │
-└── rag-service/
-    ├── app/
-    │   ├── embeddings/
-    │   ├── evaluation/
-    │   ├── ingestion/
-    │   ├── llm/
-    │   ├── reranking/
-    │   ├── retrieval/
-    │   └── vectorstore/
-    ├── evaluation_questions.py
-    └── test_*.py
+├── rag-service/
+│   ├── app/
+│   │   ├── embeddings/
+│   │   ├── evaluation/
+│   │   ├── ingestion/
+│   │   ├── llm/
+│   │   ├── reranking/
+│   │   ├── retrieval/
+│   │   └── vectorstore/
+│   │
+│   ├── evaluation_questions.py
+│   └── test_*.py
+│
+├── package.json
+├── README.md
+└── .gitignore
+```
 
-Generated files such as the FAISS index, knowledge-base data, virtual environment, and environment variables are excluded from Git.
-🚀 Running Locally
-1. Clone the repository
-git clone https://github.com/Mahesh-Hemadri/visual-ai
+Generated files such as:
+
+- Python virtual environments
+- Environment variables
+- FAISS indexes
+- Knowledge-base data
+- Python cache files
+- Next.js build files
+
+are excluded from Git.
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+Make sure you have installed:
+
+- Node.js
+- npm
+- Python 3.10+
+- Git
+
+### 1. Clone the Repository
+
+```bash
+git clone <YOUR_GITHUB_REPOSITORY_URL>
 cd visual-ai
+```
 
-2. Install frontend dependencies
+### 2. Install Frontend Dependencies
+
+```bash
 npm install
+```
 
-3. Configure environment variables
+### 3. Configure Environment Variables
+
 Create:
+
+```text
 .env.local
+```
 
-and add the required API configuration.
-The RAG service uses:
-OPENROUTER_API_KEY
+in the project root.
+
+The RAG service requires an OpenRouter API key.
 
 Create:
+
+```text
 rag-service/.env
+```
 
-with the required key.
-Never commit these files.
-▶️ Start the Frontend
+with:
+
+```env
+OPENROUTER_API_KEY=your_api_key_here
+```
+
+Do not commit API keys or environment files to Git.
+
+### 4. Start the Frontend
+
 From the project root:
+
+```bash
 npm run dev
+```
 
-Open:
+The frontend will run at:
+
+```text
 http://localhost:3000
+```
 
-▶️ Start the RAG Service
-Open another terminal:
+### 5. Start the RAG Backend
+
+Open a second terminal:
+
+```bash
 cd rag-service
+```
 
-Create/activate the virtual environment and install the Python dependencies.
-Then:
+Activate the Python virtual environment and install the required dependencies.
+
+Then start FastAPI:
+
+```bash
 uvicorn app.main:app --reload --port 8000
+```
 
-The RAG service will be available at:
+The backend will run at:
+
+```text
 http://127.0.0.1:8000
+```
 
 Health check:
+
+```text
 http://127.0.0.1:8000/health
+```
 
-🧪 Example
-Try:
+Expected response:
+
+```json
+{
+  "status": "ok",
+  "service": "visualai-rag"
+}
+```
+
+---
+
+## Example
+
+Ask:
+
+```text
 What is Retrieval-Augmented Generation?
+```
 
-The system performs:
+VisualAI processes the question through:
+
+```text
 Query
- ↓
-Embedding
- ↓
-FAISS Top-10
- ↓
+  |
+  v
+BGE Embedding
+  |
+  v
+FAISS Top-10 Retrieval
+  |
+  v
 Cross-Encoder Reranking
- ↓
+  |
+  v
 Top-3 Context
- ↓
-LLM
- ↓
-Grounded Answer
+  |
+  v
+Grounded LLM
+  |
+  v
+Answer + Sources
+```
 
-The UI then visualizes each stage of the pipeline.
-Out-of-context questions are rejected rather than answered using unsupported information.
-🧠 Design Decisions
-Why separate AI planning from rendering?
-LLMs are useful for understanding concepts and producing structured explanations, but deterministic rendering provides:
-- predictable behavior
-- consistent animations
-- reusable components
-- easier debugging
-- safer execution
-The LLM therefore determines what to explain, while the application determines how to visualize it.
-Why FAISS?
-FAISS provides efficient local vector similarity search and keeps the current prototype lightweight without requiring an external vector database.
-Why reranking?
-Vector similarity is useful for candidate retrieval, but the cross-encoder provides a second relevance-scoring stage before context is passed to the LLM.
-Why grounded generation?
-The system is designed to reduce hallucination by restricting generation to retrieved knowledge-base context and providing source attribution.
-⚠️ Current Limitations
-- The current knowledge base is a small local document collection.
-- The RAG service currently runs locally.
-- Document ingestion is currently focused on PDF text extraction.
-- The visualization library currently supports a limited set of concepts.
-- The project is currently optimized as a portfolio/MVP application rather than a production-scale deployment.
-🔮 Future Improvements
-Potential extensions include:
+The frontend then visualizes the pipeline and displays the retrieved sources.
+
+For a question outside the knowledge base, the system can return:
+
+```text
+I don't have enough information in the provided knowledge base.
+```
+
+instead of generating an unsupported answer.
+
+---
+
+## Grounding and Source Attribution
+
+Each retrieved chunk maintains metadata including:
+
+```text
+Source
+Page
+Chunk ID
+```
+
+This metadata is passed through the retrieval and generation pipeline.
+
+Generated answers can therefore reference their supporting material using citations such as:
+
+```text
+[Source: rag.pdf, p. 1]
+```
+
+This provides traceability between the generated answer and the retrieved document content.
+
+---
+
+## Current Knowledge Base
+
+The current prototype uses a small local knowledge base focused on RAG-related material.
+
+The current indexed documents include:
+
+```text
+rag.pdf
+dpr.pdf
+```
+
+The knowledge base is intentionally kept small for the prototype and evaluation workflow.
+
+---
+
+## Current Limitations
+
+VisualAI is currently a portfolio/MVP implementation and has several limitations:
+
+- The knowledge base is currently a small local document collection.
+- The RAG service runs locally.
+- PDF ingestion currently focuses on text extraction.
+- Scanned PDF/OCR processing is not currently implemented.
+- The visualization library currently supports a limited number of concepts.
+- The application is not yet optimized for production-scale document collections.
+- Authentication and multi-user access control are not currently implemented.
+
+---
+
+## Future Improvements
+
+Potential future improvements include:
+
 - Hybrid BM25 + semantic retrieval
 - Larger document collections
-- OCR support for scanned documents
+- OCR support for scanned PDFs
 - Streaming LLM responses
 - Multi-turn conversations
+- Multi-document knowledge bases
+- Duplicate chunk detection
 - Dockerized deployment
 - Cloud deployment
-- Additional interactive AI/ML visualizations
-📌 Project Status
-MVP Complete
-The current implementation demonstrates an end-to-end AI system combining:
-- RAG
-- semantic retrieval
-- vector search
-- reranking
-- grounded generation
-- source attribution
-- deterministic visualization
-- interactive frontend rendering
+- Additional AI/ML visualizations
+- Automated retrieval evaluation
+- More advanced visualization planning
+
+---
+
+## Project Status
+
+**MVP Complete**
+
+The current implementation demonstrates an end-to-end AI application combining:
+
+- Retrieval-Augmented Generation
+- Semantic vector search
+- FAISS retrieval
+- Cross-encoder reranking
+- Grounded LLM generation
+- Source attribution
+- No-answer handling
+- FastAPI backend
+- Next.js frontend
+- Deterministic visualization
+- Interactive timeline-based rendering
+
+The project is designed as a demonstration of how **AI reasoning, retrieval, backend services, and interactive frontend visualization can be combined into a single AI application.**
+
+---
+
+## Author
+
+**Mahesh**
+
+AI/ML Apprentice | GenAI | RAG | Python | Next.js | MLOps
+
+---
+
+## License
+
+This project is intended for educational and portfolio purposes.
