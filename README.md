@@ -666,7 +666,7 @@ The project is designed as a demonstration of how **AI reasoning, retrieval, bac
 
 **Mahesh**
 
-AI/ML Apprentice | GenAI | RAG | Python | Next.js | MLOps
+AI/ML Engineer | GenAI | RAG | Python | Next.js | MLOps
 
 ---
 
