@@ -34,5 +34,9 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+      
       - name: Build Next.js application
         run: npm run build
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
