@@ -2,7 +2,16 @@ from app.ingestion.pdf_loader import load_pdf
 from app.ingestion.chunker import create_chunks
 
 
-PDF_PATH = "../data/knowledge-base/rag/rag.pdf"
+
+from pathlib import Path
+
+from app.ingestion.pdf_loader import load_pdf
+from app.ingestion.chunker import create_chunks
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PDF_PATH = PROJECT_ROOT / "data" / "knowledge-base" / "rag" / "rag.pdf"
+
 
 
 def main():
@@ -12,7 +21,7 @@ def main():
     print("=" * 70)
 
     # Step 1: Load PDF
-    pages = load_pdf(PDF_PATH)
+    pages = load_pdf(str(PDF_PATH))
 
     print(f"\nLoaded pages: {len(pages)}")
 
