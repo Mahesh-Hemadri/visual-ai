@@ -1,0 +1,71 @@
+
+name: Visual AI CI
+
+on:
+  push:
+    branches:
+      - main
+      - "ci/**"
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build Next.js application
+        run: npm run build
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
+  backend:
+    name: Python backend tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: rag-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install backend test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-ci.txt
+
+      - name: Run chunker unit tests
+        run: python -m unittest discover -s . -p "test_chunker_unit.py" -v
+
+      - name: Run PDF loader unit tests
+        run: python -m unittest discover -s . -p "test_pdf_loader.py" -v
+
+      - name: Run RAG API tests
+        run: python -m unittest discover -s . -p "test_api.py" -v

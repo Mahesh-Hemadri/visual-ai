@@ -5,7 +5,7 @@ import SceneRenderer from "@/components/SceneRenderer";
 import { testVisualization } from "@/visualizations/testScene";
 
 export default function PlaygroundPage() {
-  const scene = testVisualization.scenes[0];
+  const scene = "neural_network";
 
   const [currentTime, setCurrentTime] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -42,7 +42,7 @@ export default function PlaygroundPage() {
         </div>
 
         <SceneRenderer
-          scene={scene}
+          concept={scene}
           currentTime={currentTime}
         />
 

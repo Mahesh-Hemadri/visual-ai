@@ -1,10 +1,18 @@
 from app.ingestion.pdf_loader import load_pdf
 
 
-PDF_PATH = "../data/knowledge-base/rag/rag.pdf"
+
+from pathlib import Path
+
+from app.ingestion.pdf_loader import load_pdf
 
 
-documents = load_pdf(PDF_PATH)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PDF_PATH = PROJECT_ROOT / "data" / "knowledge-base" / "rag" / "rag.pdf"
+
+
+
+documents = load_pdf(str(PDF_PATH))
 
 print(f"\nLoaded {len(documents)} pages\n")
 

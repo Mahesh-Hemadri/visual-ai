@@ -49,7 +49,7 @@ export default function Home() {
         </h1>
 
         <p className="mt-6 max-w-2xl text-lg leading-8 text-gray-400">
-          Don't just read how AI works. Explore it, visualize it, and
+          Don&apos;t just read how AI works. Explore it, visualize it, and
           understand what is happening under the hood.
         </p>
 
